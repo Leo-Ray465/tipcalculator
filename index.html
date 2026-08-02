@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>Server Tip-Out Calculator</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --good: #047857;
+      --good-soft: #ecfdf5;
+      --off: #9ca3af;
+      --shadow: 0 10px 28px rgba(17,24,39,.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1020;
+        --card: #151b2e;
+        --text: #f8fafc;
+        --muted: #a5b4c7;
+        --line: #293147;
+        --accent: #60a5fa;
+        --accent-soft: #172554;
+        --good: #6ee7b7;
+        --good-soft: #064e3b;
+        --off: #64748b;
+        --shadow: 0 10px 28px rgba(0,0,0,.25);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .wrap {
+      width: min(720px, 100%);
+      margin: 0 auto;
+      padding: 20px 14px 40px;
+    }
+
+    h1 {
+      font-size: clamp(26px, 7vw, 38px);
+      line-height: 1.05;
+      margin: 8px 0 8px;
+      letter-spacing: -.04em;
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .settings {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 14px;
+      align-items: center;
+    }
+
+    label.title {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .help {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      appearance: textfield;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 13px 12px;
+      font-size: 17px;
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
+    .server-row {
+      display: grid;
+      grid-template-columns: auto 1fr 145px;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .server-row:last-child { border-bottom: 0; }
+
+    .server-name {
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .money-wrap {
+      position: relative;
+    }
+
+    .money-wrap span {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .money-wrap input { padding-left: 28px; }
+
+    .check {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 4px;
+      cursor: pointer;
+    }
+
+    .check input {
+      width: 19px;
+      height: 19px;
+      accent-color: var(--accent);
+    }
+
+    .server-row.off {
+      opacity: .55;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 14px 18px;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .primary {
+      width: 100%;
+      background: var(--accent);
+      color: white;
+      margin-top: 4px;
+    }
+
+    .secondary {
+      width: 100%;
+      margin-top: 10px;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .results {
+      display: none;
+    }
+
+    .results.show { display: block; }
+
+    .result-person {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .result-person:last-child { border-bottom: 0; }
+
+    .result-person h3 {
+      margin: 0 0 8px;
+      font-size: 19px;
+    }
+
+    .result-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 5px 0;
+      color: var(--muted);
+    }
+
+    .result-line strong {
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .net {
+      margin-top: 7px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--line);
+      color: var(--good);
+      font-weight: 800;
+    }
+
+    .summary {
+      background: var(--good-soft);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 14px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 520px) {
+      .settings { grid-template-columns: 1fr 105px; }
+      .server-row {
+        grid-template-columns: 1fr 130px;
+      }
+      .server-row > input[type="checkbox"] { grid-row: span 2; }
+      .server-meta { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Tip-Out Calculator</h1>
+    <p class="subtitle">
+      Check who worked today, enter what each person made, and the calculator will show exactly who pays whom.
+    </p>
+
+    <section class="card">
+      <div class="settings">
+        <div>
+          <label class="title" for="tipPercent">Tip-out percentage</label>
+          <div class="help">Each working server contributes this percentage of what they made. Their contribution is divided equally among the other servers who worked.</div>
+        </div>
+        <div>
+          <input id="tipPercent" type="number" min="0" max="100" step="0.1" value="10" inputmode="decimal" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="servers"></section>
+
+    <button class="primary" id="calculateBtn">Calculate Tip-Outs</button>
+    <button class="secondary" id="resetBtn">Reset</button>
+
+    <section class="card results" id="results">
+      <div id="resultContent"></div>
+    </section>
+  </main>
+
+  <script>
+    const names = ["Cory", "Kimmy", "Levi", "Nate"];
+    const serversEl = document.getElementById("servers");
+    const resultsEl = document.getElementById("results");
+    const resultContent = document.getElementById("resultContent");
+
+    function money(n) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD"
+      }).format(Math.round((n + Number.EPSILON) * 100) / 100);
+    }
+
+    function makeServerRows() {
+      serversEl.innerHTML = names.map((name, i) => `
+        <div class="server-row" id="row-${i}">
+          <input
+            id="worked-${i}"
+            type="checkbox"
+            checked
+            aria-label="${name} worked today"
+          />
+          <div class="server-meta">
+            <div class="server-name">${name}</div>
+            <label class="check" for="worked-${i}">
+              Worked today
+            </label>
+          </div>
+          <div class="money-wrap">
+            <span>$</span>
+            <input
+              id="earned-${i}"
+              type="number"
+              min="0"
+              step="0.01"
+              value=""
+              placeholder="0.00"
+              inputmode="decimal"
+              aria-label="${name} amount made"
+            />
+          </div>
+        </div>
+      `).join("");
+
+      names.forEach((_, i) => {
+        const worked = document.getElementById(`worked-${i}`);
+        const earned = document.getElementById(`earned-${i}`);
+        const row = document.getElementById(`row-${i}`);
+
+        const sync = () => {
+          earned.disabled = !worked.checked;
+          row.classList.toggle("off", !worked.checked);
+          if (!worked.checked) earned.value = "";
+        };
+        worked.addEventListener("change", sync);
+        sync();
+      });
+    }
+
+    function calculate() {
+      const pct = Math.max(0, Number(document.getElementById("tipPercent").value) || 0) / 100;
+
+      const people = names.map((name, i) => ({
+        name,
+        worked: document.getElementById(`worked-${i}`).checked,
+        earned: Math.max(0, Number(document.getElementById(`earned-${i}`).value) || 0)
+      }));
+
+      const working = people.filter(p => p.worked);
+
+      if (working.length === 0) {
+        resultContent.innerHTML = `<div class="empty">Select at least one person who worked today.</div>`;
+        resultsEl.classList.add("show");
+        return;
+      }
+
+      if (working.length === 1) {
+        resultContent.innerHTML = `
+          <div class="summary">
+            Only <strong>${working[0].name}</strong> worked today, so there is nobody to tip out.
+          </div>
+          <div class="result-person">
+            <h3>${working[0].name}</h3>
+            <div class="result-line net">
+              <span>Keeps</span>
+              <strong>${money(working[0].earned)}</strong>
+            </div>
+          </div>
+        `;
+        resultsEl.classList.add("show");
+        return;
+      }
+
+      // Matrix: payments[from][to].
+      const payments = {};
+      working.forEach(p => payments[p.name] = {});
+
+      working.forEach(from => {
+        const totalContribution = from.earned * pct;
+        const eachOther = totalContribution / (working.length - 1);
+
+        working.forEach(to => {
+          if (to.name !== from.name) {
+            payments[from.name][to.name] = eachOther;
+          }
+        });
+      });
+
+      let html = `
+        <div class="summary">
+          <strong>${working.length} servers worked.</strong>
+          Each server tips out ${(pct * 100).toFixed(1).replace(".0","")}% of what they made, split evenly among the other ${working.length - 1}.
+        </div>
+      `;
+
+      working.forEach(person => {
+        const outgoing = Object.values(payments[person.name]).reduce((a,b) => a+b, 0);
+        let incoming = 0;
+
+        working.forEach(other => {
+          if (other.name !== person.name) incoming += payments[other.name][person.name] || 0;
+        });
+
+        const finalAmount = person.earned - outgoing + incoming;
+
+        const lines = working
+          .filter(other => other.name !== person.name)
+          .map(other => `
+            <div class="result-line">
+              <span>Tip ${other.name}</span>
+              <strong>${money(payments[person.name][other.name] || 0)}</strong>
+            </div>
+          `).join("");
+
+        html += `
+          <div class="result-person">
+            <h3>${person.name}</h3>
+            ${lines}
+            <div class="result-line">
+              <span>Total paid out</span>
+              <strong>${money(outgoing)}</strong>
+            </div>
+            <div class="result-line">
+              <span>Total received</span>
+              <strong>${money(incoming)}</strong>
+            </div>
+            <div class="result-line net">
+              <span>Final after tip-outs</span>
+              <strong>${money(finalAmount)}</strong>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `
+        <div class="note">
+          A server who worked but made $0 should stay checked with $0 entered. They will still receive their share from the other working servers.
+        </div>
+      `;
+
+      resultContent.innerHTML = html;
+      resultsEl.classList.add("show");
+      resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    document.getElementById("calculateBtn").addEventListener("click", calculate);
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      document.getElementById("tipPercent").value = "10";
+      makeServerRows();
+      resultsEl.classList.remove("show");
+      resultContent.innerHTML = "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    makeServerRows();
+  </script>
+</body>
+</html>
