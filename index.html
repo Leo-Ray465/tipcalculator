@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#111827" />
   <title>Server Tip-Out Calculator</title>
   <style>
+
     :root {
       color-scheme: light dark;
       --bg: #f5f7fb;
@@ -14,11 +15,9 @@
       --muted: #6b7280;
       --line: #e5e7eb;
       --accent: #2563eb;
-      --accent-soft: #eff6ff;
       --good: #047857;
       --good-soft: #ecfdf5;
-      --off: #9ca3af;
-      --shadow: 0 10px 28px rgba(17,24,39,.08);
+      --shadow: 0 8px 24px rgba(17,24,39,.08);
     }
 
     @media (prefers-color-scheme: dark) {
@@ -29,39 +28,42 @@
         --muted: #a5b4c7;
         --line: #293147;
         --accent: #60a5fa;
-        --accent-soft: #172554;
         --good: #6ee7b7;
         --good-soft: #064e3b;
-        --off: #64748b;
-        --shadow: 0 10px 28px rgba(0,0,0,.25);
+        --shadow: 0 8px 24px rgba(0,0,0,.25);
       }
     }
 
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
+      min-height: 100vh;
     }
 
     .wrap {
-      width: min(720px, 100%);
+      width: 100%;
+      max-width: 680px;
       margin: 0 auto;
-      padding: 20px 14px 40px;
+      padding: max(18px, env(safe-area-inset-top)) 14px max(30px, env(safe-area-inset-bottom));
     }
 
     h1 {
-      font-size: clamp(26px, 7vw, 38px);
-      line-height: 1.05;
-      margin: 8px 0 8px;
+      font-size: clamp(28px, 8vw, 40px);
+      line-height: 1;
+      margin: 6px 0 10px;
       letter-spacing: -.04em;
     }
 
     .subtitle {
-      margin: 0 0 20px;
+      margin: 0 0 18px;
       color: var(--muted);
       line-height: 1.45;
+      font-size: 15px;
     }
 
     .card {
@@ -73,162 +75,159 @@
       margin-bottom: 14px;
     }
 
-    .settings {
-      display: grid;
-      grid-template-columns: 1fr 120px;
-      gap: 14px;
-      align-items: center;
-    }
-
-    label.title {
-      font-weight: 700;
-      display: block;
-      margin-bottom: 4px;
-    }
-
     .help {
-      font-size: 13px;
+      font-size: 14px;
       color: var(--muted);
-      line-height: 1.35;
+      line-height: 1.45;
     }
 
-    input[type="number"] {
-      width: 100%;
-      appearance: textfield;
-      border: 1px solid var(--line);
-      background: var(--bg);
-      color: var(--text);
-      border-radius: 12px;
-      padding: 13px 12px;
-      font-size: 17px;
-      outline: none;
-    }
-
-    input[type="number"]:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-    }
+    #servers.card { padding: 6px 14px; }
 
     .server-row {
       display: grid;
-      grid-template-columns: auto 1fr 145px;
-      gap: 12px;
+      grid-template-columns: 30px 1fr;
+      gap: 8px 12px;
       align-items: center;
-      padding: 12px 0;
+      padding: 16px 0;
       border-bottom: 1px solid var(--line);
     }
 
     .server-row:last-child { border-bottom: 0; }
 
+    .server-row > input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      accent-color: var(--accent);
+      margin: 0;
+    }
+
     .server-name {
       font-weight: 800;
-      font-size: 18px;
+      font-size: 20px;
+      line-height: 1.15;
     }
-
-    .money-wrap {
-      position: relative;
-    }
-
-    .money-wrap span {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--muted);
-      pointer-events: none;
-    }
-
-    .money-wrap input { padding-left: 28px; }
 
     .check {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
       font-size: 14px;
       color: var(--muted);
       margin-top: 4px;
       cursor: pointer;
+      min-height: 24px;
     }
 
-    .check input {
-      width: 19px;
-      height: 19px;
-      accent-color: var(--accent);
+    .money-wrap {
+      grid-column: 1 / -1;
+      position: relative;
+      margin-top: 6px;
     }
 
-    .server-row.off {
-      opacity: .55;
+    .money-wrap span {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      font-size: 18px;
     }
+
+    input[type="number"] {
+      width: 100%;
+      min-height: 54px;
+      appearance: textfield;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 14px 14px 14px 32px;
+      font-size: 20px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    input[type="number"]:focus { border-color: var(--accent); }
+    .server-row.off { opacity: .5; }
 
     button {
+      width: 100%;
+      min-height: 56px;
       border: 0;
-      border-radius: 14px;
-      padding: 14px 18px;
-      font-size: 17px;
+      border-radius: 15px;
+      padding: 15px 18px;
+      font-size: 18px;
       font-weight: 800;
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     .primary {
-      width: 100%;
       background: var(--accent);
       color: white;
-      margin-top: 4px;
+      margin-top: 2px;
     }
 
     .secondary {
-      width: 100%;
       margin-top: 10px;
       background: transparent;
       color: var(--text);
       border: 1px solid var(--line);
     }
 
-    .results {
-      display: none;
-    }
-
+    .results { display: none; margin-top: 16px; }
     .results.show { display: block; }
 
+    .summary {
+      background: var(--good-soft);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 8px;
+      line-height: 1.5;
+      font-size: 15px;
+    }
+
     .result-person {
-      padding: 14px 0;
+      padding: 17px 0;
       border-bottom: 1px solid var(--line);
     }
 
     .result-person:last-child { border-bottom: 0; }
 
     .result-person h3 {
-      margin: 0 0 8px;
-      font-size: 19px;
+      margin: 0 0 10px;
+      font-size: 21px;
     }
 
     .result-line {
-      display: flex;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 5px 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 7px 0;
       color: var(--muted);
+      font-size: 15px;
     }
 
     .result-line strong {
       color: var(--text);
       white-space: nowrap;
+      font-size: 16px;
     }
 
     .net {
-      margin-top: 7px;
-      padding-top: 8px;
+      margin-top: 8px;
+      padding-top: 10px;
       border-top: 1px dashed var(--line);
       color: var(--good);
       font-weight: 800;
     }
 
-    .summary {
-      background: var(--good-soft);
-      border-radius: 14px;
-      padding: 12px 14px;
-      margin-bottom: 6px;
-      line-height: 1.4;
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 14px;
+      line-height: 1.45;
     }
 
     .empty {
@@ -236,21 +235,20 @@
       font-style: italic;
     }
 
-    .note {
-      font-size: 13px;
-      color: var(--muted);
-      margin-top: 14px;
-      line-height: 1.4;
+    @media (min-width: 560px) {
+      .wrap { padding-left: 20px; padding-right: 20px; }
+
+      .server-row {
+        grid-template-columns: 30px 1fr 170px;
+        gap: 12px;
+      }
+
+      .money-wrap {
+        grid-column: auto;
+        margin-top: 0;
+      }
     }
 
-    @media (max-width: 520px) {
-      .settings { grid-template-columns: 1fr 105px; }
-      .server-row {
-        grid-template-columns: 1fr 130px;
-      }
-      .server-row > input[type="checkbox"] { grid-row: span 2; }
-      .server-meta { min-width: 0; }
-    }
   </style>
 </head>
 <body>
