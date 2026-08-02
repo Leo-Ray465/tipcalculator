@@ -261,14 +261,9 @@
     </p>
 
     <section class="card">
-      <div class="settings">
-        <div>
-          <label class="title" for="tipPercent">Tip-out percentage</label>
-          <div class="help">Each working server contributes this percentage of what they made. Their contribution is divided equally among the other servers who worked.</div>
-        </div>
-        <div>
-          <input id="tipPercent" type="number" min="0" max="100" step="0.1" value="10" inputmode="decimal" />
-        </div>
+      <strong>How it works</strong>
+      <div class="help" style="margin-top:6px;">
+        The total made by everyone who worked is divided evenly. The calculator shows the transfers needed so every working server finishes with exactly the same amount.
       </div>
     </section>
 
@@ -342,8 +337,6 @@
     }
 
     function calculate() {
-      const pct = Math.max(0, Number(document.getElementById("tipPercent").value) || 0) / 100;
-
       const people = names.map((name, i) => ({
         name,
         worked: document.getElementById(`worked-${i}`).checked,
@@ -358,15 +351,18 @@
         return;
       }
 
+      const total = working.reduce((sum, p) => sum + p.earned, 0);
+      const target = total / working.length;
+
       if (working.length === 1) {
         resultContent.innerHTML = `
           <div class="summary">
-            Only <strong>${working[0].name}</strong> worked today, so there is nobody to tip out.
+            Only <strong>${working[0].name}</strong> worked today, so there are no transfers to make.
           </div>
           <div class="result-person">
             <h3>${working[0].name}</h3>
             <div class="result-line net">
-              <span>Keeps</span>
+              <span>Final amount</span>
               <strong>${money(working[0].earned)}</strong>
             </div>
           </div>
@@ -375,62 +371,94 @@
         return;
       }
 
-      // Matrix: payments[from][to].
-      const payments = {};
-      working.forEach(p => payments[p.name] = {});
+      // Positive balance means this person needs to receive money.
+      // Negative balance means this person needs to pay money.
+      const balances = working.map(p => ({
+        name: p.name,
+        earned: p.earned,
+        balance: target - p.earned
+      }));
 
-      working.forEach(from => {
-        const totalContribution = from.earned * pct;
-        const eachOther = totalContribution / (working.length - 1);
+      const receivers = balances
+        .filter(p => p.balance > 0.005)
+        .map(p => ({ ...p, remaining: p.balance }));
 
-        working.forEach(to => {
-          if (to.name !== from.name) {
-            payments[from.name][to.name] = eachOther;
-          }
-        });
-      });
+      const payers = balances
+        .filter(p => p.balance < -0.005)
+        .map(p => ({ ...p, remaining: -p.balance }));
+
+      const transfers = [];
+
+      let i = 0;
+      let j = 0;
+
+      while (i < payers.length && j < receivers.length) {
+        const payer = payers[i];
+        const receiver = receivers[j];
+        const amount = Math.min(payer.remaining, receiver.remaining);
+
+        if (amount > 0.005) {
+          transfers.push({
+            from: payer.name,
+            to: receiver.name,
+            amount
+          });
+        }
+
+        payer.remaining -= amount;
+        receiver.remaining -= amount;
+
+        if (payer.remaining <= 0.005) i++;
+        if (receiver.remaining <= 0.005) j++;
+      }
 
       let html = `
         <div class="summary">
-          <strong>${working.length} servers worked.</strong>
-          Each server tips out ${(pct * 100).toFixed(1).replace(".0","")}% of what they made, split evenly among the other ${working.length - 1}.
+          <strong>${working.length} servers worked.</strong><br>
+          Total made: <strong>${money(total)}</strong><br>
+          Equal share: <strong>${money(target)} each</strong>
         </div>
       `;
 
       working.forEach(person => {
-        const outgoing = Object.values(payments[person.name]).reduce((a,b) => a+b, 0);
-        let incoming = 0;
+        const outgoing = transfers.filter(t => t.from === person.name);
+        const incoming = transfers.filter(t => t.to === person.name);
 
-        working.forEach(other => {
-          if (other.name !== person.name) incoming += payments[other.name][person.name] || 0;
+        let lines = "";
+
+        outgoing.forEach(t => {
+          lines += `
+            <div class="result-line">
+              <span>Pay ${t.to}</span>
+              <strong>${money(t.amount)}</strong>
+            </div>
+          `;
         });
 
-        const finalAmount = person.earned - outgoing + incoming;
-
-        const lines = working
-          .filter(other => other.name !== person.name)
-          .map(other => `
+        incoming.forEach(t => {
+          lines += `
             <div class="result-line">
-              <span>Tip ${other.name}</span>
-              <strong>${money(payments[person.name][other.name] || 0)}</strong>
+              <span>Receive from ${t.from}</span>
+              <strong>${money(t.amount)}</strong>
             </div>
-          `).join("");
+          `;
+        });
+
+        if (!outgoing.length && !incoming.length) {
+          lines = `<div class="result-line"><span>No transfer needed</span><strong>$0.00</strong></div>`;
+        }
 
         html += `
           <div class="result-person">
             <h3>${person.name}</h3>
+            <div class="result-line">
+              <span>Started with</span>
+              <strong>${money(person.earned)}</strong>
+            </div>
             ${lines}
-            <div class="result-line">
-              <span>Total paid out</span>
-              <strong>${money(outgoing)}</strong>
-            </div>
-            <div class="result-line">
-              <span>Total received</span>
-              <strong>${money(incoming)}</strong>
-            </div>
             <div class="result-line net">
-              <span>Final after tip-outs</span>
-              <strong>${money(finalAmount)}</strong>
+              <span>Ends with</span>
+              <strong>${money(target)}</strong>
             </div>
           </div>
         `;
@@ -438,7 +466,7 @@
 
       html += `
         <div class="note">
-          A server who worked but made $0 should stay checked with $0 entered. They will still receive their share from the other working servers.
+          Keep a server checked if they worked, even if they made $0. They are still included in the equal split. Unchecked servers are excluded entirely.
         </div>
       `;
 
@@ -450,7 +478,6 @@
     document.getElementById("calculateBtn").addEventListener("click", calculate);
 
     document.getElementById("resetBtn").addEventListener("click", () => {
-      document.getElementById("tipPercent").value = "10";
       makeServerRows();
       resultsEl.classList.remove("show");
       resultContent.innerHTML = "";
