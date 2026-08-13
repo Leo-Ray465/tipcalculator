@@ -249,11 +249,44 @@
       }
     }
 
+
+    .venue-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      background: var(--line);
+      border-radius: 15px;
+      margin: 0 0 16px;
+    }
+
+    .venue-toggle button {
+      min-height: 46px;
+      margin: 0;
+      border-radius: 11px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 16px;
+      padding: 10px 12px;
+    }
+
+    .venue-toggle button.active {
+      background: var(--card);
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(17,24,39,.10);
+    }
+
   </style>
 </head>
 <body>
   <main class="wrap">
     <h1>Tip-Out Calculator</h1>
+
+    <div class="venue-toggle" role="group" aria-label="Select outlet">
+      <button type="button" id="lpcBtn" class="active">LPC</button>
+      <button type="button" id="tailoredBtn">Tailored Bar</button>
+    </div>
+
     <p class="subtitle">
       Check who worked today, enter what each person made, and the calculator will show exactly who pays whom.
     </p>
@@ -276,7 +309,13 @@
   </main>
 
   <script>
-    const names = ["Cory", "Kimmy", "Levi", "Nate"];
+    const venueNames = {
+      lpc: ["Cory", "Kimmy", "Levi", "Nate"],
+      tailored: ["Cynthia", "James", "Brittany", "Josephine", "Ciara", "Jennifer"]
+    };
+
+    let currentVenue = "lpc";
+    let names = venueNames[currentVenue];
     const serversEl = document.getElementById("servers");
     const resultsEl = document.getElementById("results");
     const resultContent = document.getElementById("resultContent");
@@ -294,7 +333,7 @@
           <input
             id="worked-${i}"
             type="checkbox"
-            checked
+            ${currentVenue === "lpc" ? "checked" : ""}
             aria-label="${name} worked today"
           />
           <div class="server-meta">
@@ -472,6 +511,22 @@
       resultsEl.classList.add("show");
       resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+
+
+    function switchVenue(venue) {
+      currentVenue = venue;
+      names = venueNames[currentVenue];
+
+      document.getElementById("lpcBtn").classList.toggle("active", venue === "lpc");
+      document.getElementById("tailoredBtn").classList.toggle("active", venue === "tailored");
+
+      makeServerRows();
+      resultsEl.classList.remove("show");
+      resultContent.innerHTML = "";
+    }
+
+    document.getElementById("lpcBtn").addEventListener("click", () => switchVenue("lpc"));
+    document.getElementById("tailoredBtn").addEventListener("click", () => switchVenue("tailored"));
 
     document.getElementById("calculateBtn").addEventListener("click", calculate);
 
