@@ -117,6 +117,41 @@
       min-height: 24px;
     }
 
+    .shared-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+      cursor: pointer;
+    }
+
+    .shared-check input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      margin: 0;
+    }
+
+    .shared-fields {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .shared-fields.hidden { display: none; }
+
+    .field-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      margin: 0 0 5px 2px;
+    }
+
     .money-wrap {
       grid-column: 1 / -1;
       position: relative;
@@ -247,6 +282,11 @@
         grid-column: auto;
         margin-top: 0;
       }
+
+      .shared-fields {
+        grid-template-columns: 1fr 1fr;
+        margin-left: 42px;
+      }
     }
 
 
@@ -328,57 +368,214 @@
     }
 
     function makeServerRows() {
-      serversEl.innerHTML = names.map((name, i) => `
-        <div class="server-row" id="row-${i}">
-          <input
-            id="worked-${i}"
-            type="checkbox"
-            ${currentVenue === "lpc" ? "checked" : ""}
-            aria-label="${name} worked today"
-          />
-          <div class="server-meta">
-            <div class="server-name">${name}</div>
-            <label class="check" for="worked-${i}">
-              Worked today
-            </label>
-          </div>
-          <div class="money-wrap">
-            <span>$</span>
+      serversEl.innerHTML = names.map((name, i) => {
+        if (currentVenue === "tailored") {
+          return `
+            <div class="server-row" id="row-${i}">
+              <input
+                id="worked-${i}"
+                type="checkbox"
+                aria-label="${name} worked today"
+              />
+
+              <div class="server-meta">
+                <div class="server-name">${name}</div>
+
+                <label class="check" for="worked-${i}">
+                  Worked today
+                </label>
+
+                <label class="shared-check" for="shared-${i}">
+                  <input id="shared-${i}" type="checkbox" />
+                  Shared shift adjustment
+                </label>
+              </div>
+
+              <div class="money-wrap" id="normal-wrap-${i}">
+                <span>$</span>
+                <input
+                  id="earned-${i}"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value=""
+                  placeholder="0.00"
+                  inputmode="decimal"
+                  aria-label="${name} amount made"
+                />
+              </div>
+
+              <div class="shared-fields hidden" id="shared-fields-${i}">
+                <div>
+                  <label class="field-label" for="shared-start-${i}">
+                    Tips when overlap started
+                  </label>
+                  <div class="money-wrap">
+                    <span>$</span>
+                    <input
+                      id="shared-start-${i}"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value=""
+                      placeholder="0.00"
+                      inputmode="decimal"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="field-label" for="shared-end-${i}">
+                    Final tip total
+                  </label>
+                  <div class="money-wrap">
+                    <span>$</span>
+                    <input
+                      id="shared-end-${i}"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value=""
+                      placeholder="0.00"
+                      inputmode="decimal"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="server-row" id="row-${i}">
             <input
-              id="earned-${i}"
-              type="number"
-              min="0"
-              step="0.01"
-              value=""
-              placeholder="0.00"
-              inputmode="decimal"
-              aria-label="${name} amount made"
+              id="worked-${i}"
+              type="checkbox"
+              checked
+              aria-label="${name} worked today"
             />
+            <div class="server-meta">
+              <div class="server-name">${name}</div>
+              <label class="check" for="worked-${i}">
+                Worked today
+              </label>
+            </div>
+            <div class="money-wrap">
+              <span>$</span>
+              <input
+                id="earned-${i}"
+                type="number"
+                min="0"
+                step="0.01"
+                value=""
+                placeholder="0.00"
+                inputmode="decimal"
+                aria-label="${name} amount made"
+              />
+            </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
 
       names.forEach((_, i) => {
         const worked = document.getElementById(`worked-${i}`);
         const earned = document.getElementById(`earned-${i}`);
         const row = document.getElementById(`row-${i}`);
 
-        const sync = () => {
-          earned.disabled = !worked.checked;
-          row.classList.toggle("off", !worked.checked);
-          if (!worked.checked) earned.value = "";
+        const shared = document.getElementById(`shared-${i}`);
+        const normalWrap = document.getElementById(`normal-wrap-${i}`);
+        const sharedFields = document.getElementById(`shared-fields-${i}`);
+        const sharedStart = document.getElementById(`shared-start-${i}`);
+        const sharedEnd = document.getElementById(`shared-end-${i}`);
+
+        const syncWorked = () => {
+          const on = worked.checked;
+          row.classList.toggle("off", !on);
+          earned.disabled = !on;
+
+          if (sharedStart) sharedStart.disabled = !on;
+          if (sharedEnd) sharedEnd.disabled = !on;
+
+          // Shared shift adjustment remains selectable even before "Worked today".
+          // If the person is manually unselected, also clear their shared adjustment.
+          if (!on) {
+            earned.value = "";
+
+            if (shared && shared.checked) {
+              shared.checked = false;
+            }
+
+            if (sharedStart) sharedStart.value = "";
+            if (sharedEnd) sharedEnd.value = "";
+            if (normalWrap) normalWrap.style.display = "";
+            if (sharedFields) sharedFields.classList.add("hidden");
+          }
         };
-        worked.addEventListener("change", sync);
-        sync();
+
+        worked.addEventListener("change", syncWorked);
+
+        if (shared) {
+          const syncShared = () => {
+            const useShared = shared.checked;
+
+            // Selecting shared adjustment automatically marks this person as working.
+            if (useShared && !worked.checked) {
+              worked.checked = true;
+            }
+
+            row.classList.toggle("off", !worked.checked);
+            earned.disabled = !worked.checked;
+            normalWrap.style.display = useShared ? "none" : "";
+            sharedFields.classList.toggle("hidden", !useShared);
+
+            if (sharedStart) sharedStart.disabled = !worked.checked;
+            if (sharedEnd) sharedEnd.disabled = !worked.checked;
+
+            if (useShared) {
+              earned.value = "";
+            } else {
+              if (sharedStart) sharedStart.value = "";
+              if (sharedEnd) sharedEnd.value = "";
+            }
+          };
+
+          shared.addEventListener("change", syncShared);
+          syncShared();
+        }
+
+        syncWorked();
       });
     }
 
     function calculate() {
-      const people = names.map((name, i) => ({
-        name,
-        worked: document.getElementById(`worked-${i}`).checked,
-        earned: Math.max(0, Number(document.getElementById(`earned-${i}`).value) || 0)
-      }));
+      const people = names.map((name, i) => {
+        const worked = document.getElementById(`worked-${i}`).checked;
+
+        if (currentVenue === "tailored") {
+          const shared = document.getElementById(`shared-${i}`).checked;
+
+          if (shared) {
+            const start = Math.max(0, Number(document.getElementById(`shared-start-${i}`).value) || 0);
+            const end = Math.max(0, Number(document.getElementById(`shared-end-${i}`).value) || 0);
+
+            return {
+              name,
+              worked,
+              shared: true,
+              start,
+              end,
+              earned: Math.max(0, end - start)
+            };
+          }
+        }
+
+        return {
+          name,
+          worked,
+          shared: false,
+          earned: Math.max(0, Number(document.getElementById(`earned-${i}`).value) || 0)
+        };
+      });
 
       const working = people.filter(p => p.worked);
 
@@ -386,6 +583,19 @@
         resultContent.innerHTML = `<div class="empty">Select at least one person who worked today.</div>`;
         resultsEl.classList.add("show");
         return;
+      }
+
+      if (currentVenue === "tailored") {
+        const invalid = working.find(p => p.shared && p.end < p.start);
+        if (invalid) {
+          resultContent.innerHTML = `
+            <div class="empty">
+              ${invalid.name}'s final tip total cannot be less than the amount entered when the overlap started.
+            </div>
+          `;
+          resultsEl.classList.add("show");
+          return;
+        }
       }
 
       const total = working.reduce((sum, p) => sum + p.earned, 0);
@@ -399,7 +609,7 @@
           <div class="result-person">
             <h3>${working[0].name}</h3>
             <div class="result-line net">
-              <span>Final amount</span>
+              <span>Amount used for calculation</span>
               <strong>${money(working[0].earned)}</strong>
             </div>
           </div>
@@ -408,11 +618,12 @@
         return;
       }
 
-      // Positive balance means this person needs to receive money.
-      // Negative balance means this person needs to pay money.
       const balances = working.map(p => ({
         name: p.name,
         earned: p.earned,
+        shared: p.shared,
+        start: p.start,
+        end: p.end,
         balance: target - p.earned
       }));
 
@@ -452,7 +663,7 @@
       let html = `
         <div class="summary">
           <strong>${working.length} servers worked.</strong><br>
-          Total made: <strong>${money(total)}</strong><br>
+          Total included in split: <strong>${money(total)}</strong><br>
           Equal share: <strong>${money(target)} each</strong>
         </div>
       `;
@@ -485,16 +696,35 @@
           lines = `<div class="result-line"><span>No transfer needed</span><strong>$0.00</strong></div>`;
         }
 
-        html += `
-          <div class="result-person">
-            <h3>${person.name}</h3>
+        const detail = person.shared
+          ? `
+            <div class="result-line">
+              <span>At overlap start</span>
+              <strong>${money(person.start)}</strong>
+            </div>
+            <div class="result-line">
+              <span>Final total</span>
+              <strong>${money(person.end)}</strong>
+            </div>
+            <div class="result-line">
+              <span>Included in split</span>
+              <strong>${money(person.earned)}</strong>
+            </div>
+          `
+          : `
             <div class="result-line">
               <span>Started with</span>
               <strong>${money(person.earned)}</strong>
             </div>
+          `;
+
+        html += `
+          <div class="result-person">
+            <h3>${person.name}</h3>
+            ${detail}
             ${lines}
             <div class="result-line net">
-              <span>Ends with</span>
+              <span>Split target</span>
               <strong>${money(target)}</strong>
             </div>
           </div>
@@ -503,7 +733,7 @@
 
       html += `
         <div class="note">
-          Keep a server checked if they worked, even if they made $0. They are still included in the equal split. Unchecked servers are excluded entirely.
+          For Tailored, checking "Shared shift adjustment" makes the calculator use only the difference between the overlap-start amount and the final total for that person.
         </div>
       `;
 
