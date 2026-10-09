@@ -316,10 +316,45 @@
       box-shadow: 0 2px 8px rgba(17,24,39,.10);
     }
 
+
+    .site-nav {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      background: var(--line);
+      border-radius: 15px;
+      margin: 0 0 14px;
+    }
+
+    .site-nav a {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .site-nav a.active {
+      background: var(--card);
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(17,24,39,.10);
+    }
+
   </style>
 </head>
 <body>
   <main class="wrap">
+
+    <nav class="site-nav" aria-label="Site navigation">
+      <a href="index.html" class="active">Tip Calculator</a>
+      <a href="server-rotation.html">Server Rotation</a>
+    </nav>
+
     <h1>Tip-Out Calculator</h1>
 
     <div class="venue-toggle" role="group" aria-label="Select outlet">
