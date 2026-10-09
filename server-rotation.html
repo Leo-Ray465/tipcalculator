@@ -16,7 +16,7 @@ button.active,.primary{background:var(--accent);color:#17130b;border-color:var(-
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.chip{padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-weight:650}
 .queue-row,.stat-row,.hist-row{background:var(--card);border-radius:11px;padding:10px 12px;margin:7px 0}.queue-row{display:flex;align-items:center;gap:10px}.num{width:27px;height:27px;border:1px solid var(--border);border-radius:50%;display:grid;place-items:center;color:var(--muted);font-size:13px}.push{margin-left:auto}
 .storage-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.storage-card{background:var(--card);padding:14px;border-radius:14px}.storage-card button{width:100%;margin-top:8px}.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.small{font-size:12px;color:var(--muted);line-height:1.45} input[type=date]{min-height:40px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:7px 10px;font:inherit} details.audit summary{cursor:pointer;font-weight:700;font-size:17px} details.audit[open] summary{margin-bottom:12px}.status{font-size:12px;color:var(--muted);text-align:right}.hidden{display:none!important}.danger{color:var(--danger)}
+.small{font-size:12px;color:var(--muted);line-height:1.45} select{min-height:40px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:7px 10px;font:inherit} input[type=date]{min-height:40px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:7px 10px;font:inherit} details.audit summary{cursor:pointer;font-weight:700;font-size:17px} details.audit[open] summary{margin-bottom:12px}.status{font-size:12px;color:var(--muted);text-align:right}.hidden{display:none!important}.danger{color:var(--danger)}
 @media(max-width:680px){.grid2,.storage-grid{grid-template-columns:1fr}.top{display:block}.status{text-align:left;margin-top:8px}}
 
 .site-nav{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--border);border-radius:15px;margin-bottom:18px}
@@ -42,7 +42,7 @@ button.active,.primary{background:var(--accent);color:#17130b;border-color:var(-
 
 <div class="grid2">
 <section class="panel"><div class="eyebrow">Priority order</div><h2>Next in rotation</h2><div id="queue"></div><p class="small">If a server's turn is reached while unavailable, they are protected at the front of the next rotation. Servers who work move to the back. Manager overrides use the actual lineup.</p></section>
-<section class="panel"><div class="row"><div><div class="eyebrow">Totals</div><h2>Rolling 21 days</h2></div><span class="small" id="window"></span></div><div id="totals"></div><p class="small">Older shifts remain in history but no longer count toward these totals.</p></section>
+<section class="panel"><div class="row"><div><div class="eyebrow">Totals</div><h2>Rolling totals</h2></div><div style="text-align:right"><label class="small" for="rollingDays">Include</label><br><select id="rollingDays" aria-label="Rolling totals period"><option value="7">7 days</option><option value="14">14 days</option><option value="21" selected>21 days</option><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option></select><div class="small" id="window"></div></div></div><div id="totals"></div><p class="small">Older shifts remain in history but no longer count toward these totals.</p></section>
 </div>
 
 <section class="panel">
@@ -58,7 +58,7 @@ button.active,.primary{background:var(--accent);color:#17130b;border-color:var(-
 
 <script>
 const names=['Levi','Cory','Nate','Kimmy']; const $=s=>document.querySelector(s);
-let data=fresh(),needed=2,avail=Object.fromEntries(names.map(n=>[n,true])),override=false,chosen=[],mode='auto',handle=null;
+let rollingDays=parseInt(localStorage.getItem('rollingDays')||'21',10);let data=fresh(),needed=2,avail=Object.fromEntries(names.map(n=>[n,true])),override=false,chosen=[],mode='auto',handle=null;
 function todayISO(){let d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
 function fresh(){return{version:1,rotation:[...names],history:[],testDate:todayISO()}}
 function pd(s){let [y,m,d]=s.split('-').map(Number);return new Date(Date.UTC(y,m-1,d))}
@@ -69,10 +69,10 @@ function rec(){return data.rotation.filter(n=>avail[n]).slice(0,needed)}
 function valid(x){return x&&Array.isArray(x.rotation)&&Array.isArray(x.history)&&names.every(n=>x.rotation.includes(n))}
 function json(){return JSON.stringify(data,null,2)}
 function protectedTurns(){let out=[],seen=0;for(const n of data.rotation){if(avail[n])seen++;else if(seen<needed)out.push(n);if(seen>=needed)break}return out}
-function rolling(){let end=pd(data.testDate);let start=new Date(end);start.setUTCDate(start.getUTCDate()-20);let rows=data.history.filter(h=>{let d=pd(h.date);return d>=start&&d<=end});let totals=Object.fromEntries(names.map(n=>[n,{worked:0,unavailable:0}]));rows.forEach(h=>names.forEach(n=>{if(h.worked.includes(n))totals[n].worked++;if(h.unavailable.includes(n))totals[n].unavailable++}));return{start:iso(start),end:iso(end),totals}}
+function rolling(){let end=pd(data.testDate);let start=new Date(end);start.setUTCDate(start.getUTCDate()-(rollingDays-1));let rows=data.history.filter(h=>{let d=pd(h.date);return d>=start&&d<=end});let totals=Object.fromEntries(names.map(n=>[n,{worked:0,unavailable:0}]));rows.forEach(h=>names.forEach(n=>{if(h.worked.includes(n))totals[n].worked++;if(h.unavailable.includes(n))totals[n].unavailable++}));return{start:iso(start),end:iso(end),totals}}
 async function autosave(){if(mode!=='auto'||!handle)return;try{let w=await handle.createWritable();await w.write(json());await w.close();$('#saveState').textContent='Saved automatically'}catch(e){$('#saveState').textContent='Auto-save failed: '+e.message}}
 function render(){
- $('#datePicker').value=data.testDate;
+ $('#datePicker').value=data.testDate; if($('#rollingDays')) $('#rollingDays').value=String(rollingDays);
  $('#need').innerHTML=''; [1,2,3,4].forEach(x=>{let b=document.createElement('button');b.textContent=x;b.className=x===needed?'active':'';b.onclick=()=>{needed=x;chosen=chosen.slice(0,x);render()};$('#need').append(b)});
  $('#avail').innerHTML=''; names.forEach(n=>{let l=document.createElement('label');l.className='check';let i=document.createElement('input');i.type='checkbox';i.checked=avail[n];i.onchange=()=>{avail[n]=i.checked;if(!i.checked)chosen=chosen.filter(x=>x!==n);render()};l.append(i,document.createTextNode(n));$('#avail').append(l)});
  let rr=$('#recommend');rr.innerHTML='';let recommended=rec();recommended.forEach((n,i)=>{let s=document.createElement('span');s.className='chip';s.textContent=(i+1)+'. '+n;rr.append(s)});if(!recommended.length)rr.textContent='Nobody available';
@@ -84,6 +84,7 @@ function render(){
  $('#history').innerHTML='';if(!data.history.length)$('#history').innerHTML='<div class="hist-row muted">No shifts recorded yet.</div>';else [...data.history].reverse().forEach(e=>{let d=document.createElement('div');d.className='hist-row';d.innerHTML=`<div class="row"><strong>${fmt(e.date)}</strong><span class="small">Next: ${e.nextRotation[0]}</span></div><div class="small">Worked: ${e.worked.join(', ')}${e.unavailable.length?' · Unavailable: '+e.unavailable.join(', '):''}${e.override?' · Manager override':''}</div>`;$('#history').append(d)});
  $('#undo').disabled=!data.history.length;
 }
+$('#rollingDays').onchange=()=>{rollingDays=parseInt($('#rollingDays').value,10)||21;localStorage.setItem('rollingDays',String(rollingDays));render()};
 $('#datePicker').onchange=()=>{if($('#datePicker').value){data.testDate=$('#datePicker').value;avail=Object.fromEntries(names.map(n=>[n,true]));override=false;chosen=[];render()}};
 $('#overrideBtn').onclick=()=>{override=!override;chosen=override?[...rec()]:[];render()};
 $('#confirm').onclick=async()=>{
