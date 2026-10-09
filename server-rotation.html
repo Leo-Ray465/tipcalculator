@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Specialty Restaurant Server Rotation</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a20;--card:#20242c;--border:#343a46;--text:#f3f1ea;--muted:#a7acb7;--accent:#d2b36b;--accent2:#f0d99f;--danger:#d47b7b}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:980px;margin:auto;padding:24px 16px 60px}.top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+h1{font-size:25px;margin:3px 0} h2{font-size:17px;margin:0 0 12px}.eyebrow,.muted{color:var(--muted);font-size:13px}.panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.choices{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.availability,.override-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button,.check{min-height:46px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:12px;padding:10px 12px;font:inherit;cursor:pointer}
+button.active,.primary{background:var(--accent);color:#17130b;border-color:var(--accent);font-weight:700}.primary{width:100%;margin-top:14px}.primary:disabled{opacity:.4;cursor:not-allowed}
+.check{display:flex;align-items:center;gap:10px}.check input{width:19px;height:19px}.assignment{background:var(--card);border-radius:15px;padding:15px;margin-top:16px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.chip{padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-weight:650}
+.queue-row,.stat-row,.hist-row{background:var(--card);border-radius:11px;padding:10px 12px;margin:7px 0}.queue-row{display:flex;align-items:center;gap:10px}.num{width:27px;height:27px;border:1px solid var(--border);border-radius:50%;display:grid;place-items:center;color:var(--muted);font-size:13px}.push{margin-left:auto}
+.storage-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.storage-card{background:var(--card);padding:14px;border-radius:14px}.storage-card button{width:100%;margin-top:8px}.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.small{font-size:12px;color:var(--muted);line-height:1.45} input[type=date]{min-height:40px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:7px 10px;font:inherit} details.audit summary{cursor:pointer;font-weight:700;font-size:17px} details.audit[open] summary{margin-bottom:12px}.status{font-size:12px;color:var(--muted);text-align:right}.hidden{display:none!important}.danger{color:var(--danger)}
+@media(max-width:680px){.grid2,.storage-grid{grid-template-columns:1fr}.top{display:block}.status{text-align:left;margin-top:8px}}
+
+.site-nav{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--border);border-radius:15px;margin-bottom:18px}
+.site-nav a{min-width:150px;text-align:center;box-sizing:border-box;min-height:46px;display:flex;align-items:center;justify-content:center;border-radius:11px;color:var(--muted);text-decoration:none;font-weight:700}
+.site-nav a.active{background:var(--card);color:var(--text)}
+</style>
+</head>
+<body><main><nav class="site-nav" aria-label="Site navigation"><a href="index.html">Tip Calculator</a><a href="server-rotation.html" class="active">Server Rotation</a></nav>
+<div class="top"><div><div class="eyebrow">Specialty Restaurant</div><h1>Server Rotation</h1></div><div><label class="small" for="datePicker">Assignment date</label><br><input id="datePicker" type="date"><div class="status" id="saveState">Automatic file mode · connect a file</div></div></div>
+
+<section class="panel">
+<div class="grid2">
+<div><h2>Servers needed</h2><div class="choices" id="need"></div></div>
+<div><h2>Available tonight</h2><div class="availability" id="avail"></div></div>
+</div>
+<div class="assignment">
+<div class="row"><div><div class="eyebrow">Recommended assignment</div><div class="chips" id="recommend"></div></div><button id="overrideBtn">Manager override</button></div>
+<div id="overridePanel" class="hidden"><hr style="border:0;border-top:1px solid var(--border);margin:15px 0"><h2>Actual servers working</h2><div class="override-grid" id="overrideChoices"></div></div>
+<p class="muted" id="notice"></p>
+<button class="primary" id="confirm">Confirm / rewrite assignment</button>
+</div>
+</section>
+
+<div class="grid2">
+<section class="panel"><div class="eyebrow">Priority order</div><h2>Next in rotation</h2><div id="queue"></div><p class="small">If a server's turn is reached while unavailable, they are protected at the front of the next rotation. Servers who work move to the back. Manager overrides use the actual lineup.</p></section>
+<section class="panel"><div class="row"><div><div class="eyebrow">Totals</div><h2>Rolling 21 days</h2></div><span class="small" id="window"></span></div><div id="totals"></div><p class="small">Older shifts remain in history but no longer count toward these totals.</p></section>
+</div>
+
+<section class="panel">
+<div class="eyebrow">Data</div><h2>Storage</h2>
+<div class="storage-grid">
+<div class="storage-card"><label class="check"><input type="radio" id="autoMode" name="storage" checked><span><strong>Automatic file</strong><br><span class="small">Connect a JSON file and write changes back automatically.</span></span></label><button id="connect">Connect JSON file</button><div class="small" id="autoSupport"></div></div>
+<div class="storage-card"><label class="check"><input type="radio" id="manualMode" name="storage"><span><strong>Manual import / export</strong><br><span class="small">Import at the start and export the updated data when finished.</span></span></label><div class="btn-grid"><button id="importBtn">Import</button><button id="exportBtn">Export</button></div><input id="fileInput" type="file" accept=".json,application/json" hidden></div>
+</div>
+<div class="btn-grid" style="margin-top:10px"><button id="fresh">Create fresh data</button><button id="undo">Undo last shift</button></div>
+</section>
+
+<section class="panel"><details class="audit"><summary>Audit trail</summary><div class="eyebrow" style="margin-top:4px">Full shift history</div><div id="history"></div></details></section>
+
+<script>
+const names=['Levi','Cory','Nate','Kimmy']; const $=s=>document.querySelector(s);
+let data=fresh(),needed=2,avail=Object.fromEntries(names.map(n=>[n,true])),override=false,chosen=[],mode='auto',handle=null;
+function todayISO(){let d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
+function fresh(){return{version:1,rotation:[...names],history:[],testDate:todayISO()}}
+function pd(s){let [y,m,d]=s.split('-').map(Number);return new Date(Date.UTC(y,m-1,d))}
+function iso(d){return d.toISOString().slice(0,10)}
+function fmt(s,short=false){return pd(s).toLocaleDateString(undefined,{timeZone:'UTC',weekday:short?undefined:'short',month:'short',day:'numeric',year:short?undefined:'numeric'})}
+function nextDay(s){let d=pd(s);d.setUTCDate(d.getUTCDate()+1);return iso(d)}
+function rec(){return data.rotation.filter(n=>avail[n]).slice(0,needed)}
+function valid(x){return x&&Array.isArray(x.rotation)&&Array.isArray(x.history)&&names.every(n=>x.rotation.includes(n))}
+function json(){return JSON.stringify(data,null,2)}
+function protectedTurns(){let out=[],seen=0;for(const n of data.rotation){if(avail[n])seen++;else if(seen<needed)out.push(n);if(seen>=needed)break}return out}
+function rolling(){let end=pd(data.testDate);let start=new Date(end);start.setUTCDate(start.getUTCDate()-20);let rows=data.history.filter(h=>{let d=pd(h.date);return d>=start&&d<=end});let totals=Object.fromEntries(names.map(n=>[n,{worked:0,unavailable:0}]));rows.forEach(h=>names.forEach(n=>{if(h.worked.includes(n))totals[n].worked++;if(h.unavailable.includes(n))totals[n].unavailable++}));return{start:iso(start),end:iso(end),totals}}
+async function autosave(){if(mode!=='auto'||!handle)return;try{let w=await handle.createWritable();await w.write(json());await w.close();$('#saveState').textContent='Saved automatically'}catch(e){$('#saveState').textContent='Auto-save failed: '+e.message}}
+function render(){
+ $('#datePicker').value=data.testDate;
+ $('#need').innerHTML=''; [1,2,3,4].forEach(x=>{let b=document.createElement('button');b.textContent=x;b.className=x===needed?'active':'';b.onclick=()=>{needed=x;chosen=chosen.slice(0,x);render()};$('#need').append(b)});
+ $('#avail').innerHTML=''; names.forEach(n=>{let l=document.createElement('label');l.className='check';let i=document.createElement('input');i.type='checkbox';i.checked=avail[n];i.onchange=()=>{avail[n]=i.checked;if(!i.checked)chosen=chosen.filter(x=>x!==n);render()};l.append(i,document.createTextNode(n));$('#avail').append(l)});
+ let rr=$('#recommend');rr.innerHTML='';let recommended=rec();recommended.forEach((n,i)=>{let s=document.createElement('span');s.className='chip';s.textContent=(i+1)+'. '+n;rr.append(s)});if(!recommended.length)rr.textContent='Nobody available';
+ $('#overridePanel').classList.toggle('hidden',!override);$('#overrideBtn').textContent=override?'Cancel override':'Manager override';
+ $('#overrideChoices').innerHTML='';names.forEach(n=>{let l=document.createElement('label');l.className='check';let i=document.createElement('input');i.type='checkbox';i.disabled=!avail[n];i.checked=chosen.includes(n);i.onchange=()=>{if(i.checked&&chosen.length<needed)chosen.push(n);else if(!i.checked)chosen=chosen.filter(x=>x!==n);render()};l.append(i,document.createTextNode(n));$('#overrideChoices').append(l)});
+ let actual=override?chosen:recommended,ok=actual.length===needed;$('#confirm').disabled=!ok;$('#notice').textContent=override?(ok?'Override ready. This date will be saved.':`Select exactly ${needed} server${needed===1?'':'s'}.`):(ok?'Assignment ready for this date.':'Not enough available servers.');
+ $('#queue').innerHTML='';data.rotation.forEach((n,i)=>{let d=document.createElement('div');d.className='queue-row';d.innerHTML=`<span class="num">${i+1}</span><strong>${n}</strong><span class="push small">${!avail[n]?'UNAVAILABLE':i===0?'NEXT':''}</span>`;$('#queue').append(d)});
+ let roll=rolling();$('#window').textContent=fmt(roll.start,true)+' – '+fmt(roll.end,true);$('#totals').innerHTML='';names.forEach(n=>{let t=roll.totals[n],d=document.createElement('div');d.className='stat-row row';d.innerHTML=`<strong>${n}</strong><span>${t.worked} worked · <span class="small">${t.unavailable} unavailable</span></span>`;$('#totals').append(d)});
+ $('#history').innerHTML='';if(!data.history.length)$('#history').innerHTML='<div class="hist-row muted">No shifts recorded yet.</div>';else [...data.history].reverse().forEach(e=>{let d=document.createElement('div');d.className='hist-row';d.innerHTML=`<div class="row"><strong>${fmt(e.date)}</strong><span class="small">Next: ${e.nextRotation[0]}</span></div><div class="small">Worked: ${e.worked.join(', ')}${e.unavailable.length?' · Unavailable: '+e.unavailable.join(', '):''}${e.override?' · Manager override':''}</div>`;$('#history').append(d)});
+ $('#undo').disabled=!data.history.length;
+}
+$('#datePicker').onchange=()=>{if($('#datePicker').value){data.testDate=$('#datePicker').value;avail=Object.fromEntries(names.map(n=>[n,true]));override=false;chosen=[];render()}};
+$('#overrideBtn').onclick=()=>{override=!override;chosen=override?[...rec()]:[];render()};
+$('#confirm').onclick=async()=>{
+ let existingIndex=data.history.findIndex(h=>h.date===data.testDate);
+ if(existingIndex>=0){
+   let existing=data.history[existingIndex];
+   data.rotation=[...existing.previousRotation];
+   data.history.splice(existingIndex,1);
+ }
+ let worked=override?[...chosen]:rec();if(worked.length!==needed)return;
+ let prot=protectedTurns().filter(n=>!worked.includes(n)),old=[...data.rotation],remaining=data.rotation.filter(n=>!worked.includes(n)&&!prot.includes(n));
+ data.rotation=[...prot,...remaining,...worked];
+ data.history.push({date:data.testDate,needed,worked,unavailable:names.filter(n=>!avail[n]),protected:prot,override,previousRotation:old,nextRotation:[...data.rotation]});
+ data.history.sort((a,b)=>a.date.localeCompare(b.date));
+ avail=Object.fromEntries(names.map(n=>[n,true]));override=false;chosen=[];
+ await autosave();render()
+};
+$('#undo').onclick=async()=>{let last=data.history.pop();if(!last)return;data.rotation=[...last.previousRotation];await autosave();render()};
+$('#fresh').onclick=()=>{data=fresh();needed=2;avail=Object.fromEntries(names.map(n=>[n,true]));override=false;chosen=[];handle=null;mode='auto';$('#autoMode').checked=true;$('#saveState').textContent='Fresh data · automatic mode · connect a file';render()};
+$('#manualMode').onchange=()=>{mode='manual';$('#saveState').textContent='Manual mode · export to save'};
+$('#autoMode').onchange=()=>{mode='auto';$('#saveState').textContent=handle?'Automatic mode connected':'Automatic mode · connect a file'};
+const fsOK='showOpenFilePicker' in window;$('#autoSupport').textContent=fsOK?'Supported by this browser.':'Direct file access is unavailable here; use manual import/export.';$('#connect').disabled=!fsOK;
+$('#connect').onclick=async()=>{try{let [h]=await showOpenFilePicker({types:[{description:'Rotation JSON',accept:{'application/json':['.json']}}]});let f=await h.getFile(),x=JSON.parse(await f.text());if(!valid(x))throw Error('Invalid rotation file');handle=h;data=x;data.testDate=todayISO();mode='auto';$('#autoMode').checked=true;$('#saveState').textContent='Connected: '+f.name;render()}catch(e){if(e.name!=='AbortError')if(String(e.message||'').includes("Cross origin sub frames aren't allowed to show a file picker")){
+          $('#saveState').textContent='Automatic file mode · connect a file';
+        }else{
+          $('#saveState').textContent='Open failed: '+e.message;
+        }}};
+$('#importBtn').onclick=()=>$('#fileInput').click();$('#fileInput').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let x=JSON.parse(await f.text());if(!valid(x))throw Error('Invalid rotation file');data=x;data.testDate=todayISO();mode='manual';handle=null;$('#manualMode').checked=true;$('#saveState').textContent='Imported '+f.name;render()}catch(err){$('#saveState').textContent='Import failed: '+err.message}e.target.value=''};
+$('#exportBtn').onclick=()=>{let blob=new Blob([json()],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='ServerRotation.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),500);$('#saveState').textContent='Exported ServerRotation.json'};
+data.testDate=todayISO();
+render();
+</script>
+
+</main></body></html>
